@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Simple Chat App</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; margin: 0; display: flex; height: 100vh; background: #f0f2f5; }
+    
+    /* Sidebar */
+    .sidebar { width: 220px; background: #2f3136; color: white; padding: 15px; display: flex; flex-direction: column; }
+    .sidebar h2 { font-size: 18px; margin-top: 0; }
+    .channels { list-style: none; padding: 0; margin: 10px 0; flex-grow: 1; }
+    .channel-item { padding: 8px 12px; cursor: pointer; border-radius: 4px; margin-bottom: 4px; }
+    .channel-item:hover, .channel-item.active { background: #4f545c; }
+    .add-channel { display: flex; gap: 5px; margin-top: 10px; }
+    .add-channel input { width: 100%; padding: 6px; border: none; border-radius: 4px; }
+
+    /* Main Chat Area */
+    .chat-area { flex-grow: 1; display: flex; flex-direction: column; }
+    .chat-header { padding: 15px; background: white; border-bottom: 1px solid #ddd; font-weight: bold; }
+    .messages { flex-grow: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+    
+    /* Message Cards */
+    .message-card { background: white; padding: 10px; border-radius: 6px; border: 1px solid #e0e0e0; max-width: 80%; width: fit-content; }
+    .message-author { font-weight: bold; font-size: 13px; color: #555; margin-bottom: 4px; }
+    .message-text { margin-bottom: 6px; word-break: break-word; }
+    .message-card img { max-width: 100%; max-height: 250px; border-radius: 4px; display: block; }
+
+    /* Input Bar */
+    .input-bar { padding: 15px; background: white; border-top: 1px solid #ddd; }
+    .input-form { display: flex; flex-direction: column; gap: 10px; }
+    .row { display: flex; gap: 10px; }
+    .row input[type="text"] { flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+  <div class="sidebar">
+    <h2>Channels</h2>
+    <ul class="channels" id="channelList"></ul>
+    <div class="add-channel">
+      <input type="text" id="newChannelInput" placeholder="+ New Channel" />
+      <button id="addChannelBtn">Add</button>
+    </div>
+  </div>
+
+  <div class="chat-area">
+    <div class="chat-header" id="currentChannelHeader"># general</div>
+    <div class="messages" id="messageList"></div>
+
+    <div class="input-bar">
+      <form id="chatForm" class="input-form">
+        <div class="row">
+          <input type="text" id="nicknameInput" placeholder="Your Nickname" required />
+          <input type="file" id="imageInput" accept="image/*" />
+        </div>
+        <div class="row">
+          <input type="text" id="textInput" placeholder="Type a message..." />
+          <button type="submit">Send</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let currentChannel = 'general';
+    let channels = ['general', 'random'];
+
+    const channelList = document.getElementById('channelList');
+    const messageList = document.getElementById('messageList');
+    const currentChannelHeader = document.getElementById('currentChannelHeader');
+    const chatForm = document.getElementById('chatForm');
+
+    // Render channels list
+    function renderChannels() {
+      channelList.innerHTML = channels.map(ch => `
+        <li class="channel-item ${ch === currentChannel ? 'active' : ''}" onclick="switchChannel('${ch}')">
+          # ${ch}
+        </li>
+      `).join('');
+      currentChannelHeader.textContent = `# ${currentChannel}`;
+    }
+
+    function switchChannel(channel) {
+      currentChannel = channel;
+      renderChannels();
+      loadMessages();
+    }
+
+    // Add a new channel
+    document.getElementById('addChannelBtn').addEventListener('click', () => {
+      const input = document.getElementById('newChannelInput');
+      const name = input.value.trim().toLowerCase().replace(/\s+/g, '-');
+      if (name && !channels.includes(name)) {
+        channels.push(name);
+        input.value = '';
+        switchChannel(name);
+      }
+    });
+
+    // Send text + image message
+    chatForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const nickname = document.getElementById('nicknameInput').value;
+      const text = document.getElementById('textInput').value;
+      const imageFile = document.getElementById('imageInput').files[0];
+
+      if (!text && !imageFile) return;
+
+      const formData = new FormData();
+      formData.append('channel', currentChannel);
+      formData.append('nickname', nickname);
+      formData.append('text', text);
+      if (imageFile) formData.append('image', imageFile);
+
+      await fetch('/send', { method: 'POST', body: formData });
+
+      document.getElementById('textInput').value = '';
+      document.getElementById('imageInput').value = '';
+      loadMessages();
+    });
+
+    // Fetch messages for current channel
+    async function loadMessages() {
+      const res = await fetch(`/messages?channel=${currentChannel}`);
+      const messages = await res.json();
+
+      messageList.innerHTML = messages.map(msg => `
+        <div class="message-card">
+          <div class="message-author">${msg.nickname}</div>
+          ${msg.text ? `<div class="message-text">${msg.text}</div>` : ''}
+          ${msg.imageUrl ? `<img src="${msg.imageUrl}" />` : ''}
+        </div>
+      `).join('');
+      
+      messageList.scrollTop = messageList.scrollHeight;
+    }
+
+    renderChannels();
+    loadMessages();
+    setInterval(loadMessages, 2000);
+  </script>
+</body>
+</html>

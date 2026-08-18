@@ -2,37 +2,47 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Simple Chat App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Public Chat App</title>
   <style>
-    * { box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; margin: 0; display: flex; height: 100vh; background: #f0f2f5; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; display: flex; height: 100vh; background: #f0f2f5; }
     
     /* Sidebar */
-    .sidebar { width: 220px; background: #2f3136; color: white; padding: 15px; display: flex; flex-direction: column; }
-    .sidebar h2 { font-size: 18px; margin-top: 0; }
-    .channels { list-style: none; padding: 0; margin: 10px 0; flex-grow: 1; }
-    .channel-item { padding: 8px 12px; cursor: pointer; border-radius: 4px; margin-bottom: 4px; }
-    .channel-item:hover, .channel-item.active { background: #4f545c; }
+    .sidebar { width: 240px; background: #2f3136; color: white; padding: 15px; display: flex; flex-direction: column; }
+    .sidebar h2 { font-size: 18px; margin-bottom: 15px; border-bottom: 1px solid #40444b; padding-bottom: 10px; }
+    .channels { list-style: none; flex-grow: 1; overflow-y: auto; }
+    .channel-item { padding: 10px; cursor: pointer; border-radius: 4px; margin-bottom: 4px; color: #dcddde; }
+    .channel-item:hover, .channel-item.active { background: #393c43; color: white; font-weight: bold; }
     .add-channel { display: flex; gap: 5px; margin-top: 10px; }
-    .add-channel input { width: 100%; padding: 6px; border: none; border-radius: 4px; }
+    .add-channel input { width: 100%; padding: 8px; border-radius: 4px; border: none; background: #40444b; color: white; }
+    .add-channel button { padding: 8px 12px; border: none; border-radius: 4px; background: #5865f2; color: white; cursor: pointer; }
 
-    /* Main Chat Area */
-    .chat-area { flex-grow: 1; display: flex; flex-direction: column; }
-    .chat-header { padding: 15px; background: white; border-bottom: 1px solid #ddd; font-weight: bold; }
-    .messages { flex-grow: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+    /* Chat Area */
+    .chat-area { flex-grow: 1; display: flex; flex-direction: column; background: #ffffff; }
+    .chat-header { padding: 15px 20px; border-bottom: 1px solid #e0e0e0; font-weight: bold; font-size: 18px; background: #fafafa; }
+    .messages { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
     
-    /* Message Cards */
-    .message-card { background: white; padding: 10px; border-radius: 6px; border: 1px solid #e0e0e0; max-width: 80%; width: fit-content; }
-    .message-author { font-weight: bold; font-size: 13px; color: #555; margin-bottom: 4px; }
-    .message-text { margin-bottom: 6px; word-break: break-word; }
-    .message-card img { max-width: 100%; max-height: 250px; border-radius: 4px; display: block; }
+    /* Messages */
+    .message-card { background: #f4f5f7; padding: 12px; border-radius: 8px; max-width: 75%; align-self: flex-start; border: 1px solid #e5e5e5; }
+    .message-header { display: flex; gap: 10px; font-size: 12px; color: #666; margin-bottom: 6px; }
+    .message-author { font-weight: bold; color: #202225; }
+    .message-text { font-size: 14px; color: #2e3338; word-break: break-word; margin-bottom: 6px; }
+    .message-card img { max-width: 100%; max-height: 300px; border-radius: 6px; display: block; margin-top: 6px; }
 
     /* Input Bar */
-    .input-bar { padding: 15px; background: white; border-top: 1px solid #ddd; }
+    .input-bar { padding: 15px 20px; border-top: 1px solid #e0e0e0; background: #fafafa; }
     .input-form { display: flex; flex-direction: column; gap: 10px; }
     .row { display: flex; gap: 10px; }
-    .row input[type="text"] { flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    .row input[type="text"] { flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; outline: none; }
+    .row input[type="file"] { padding: 6px; border: 1px solid #ccc; border-radius: 4px; background: white; }
+    .input-form button { padding: 10px 20px; border: none; background: #5865f2; color: white; border-radius: 4px; font-weight: bold; cursor: pointer; }
+    .input-form button:hover { background: #4752c4; }
   </style>
+
+  <!-- Firebase Web SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
 
@@ -40,8 +50,8 @@
     <h2>Channels</h2>
     <ul class="channels" id="channelList"></ul>
     <div class="add-channel">
-      <input type="text" id="newChannelInput" placeholder="+ New Channel" />
-      <button id="addChannelBtn">Add</button>
+      <input type="text" id="newChannelInput" placeholder="New channel..." />
+      <button id="addChannelBtn">+</button>
     </div>
   </div>
 
@@ -64,83 +74,115 @@
   </div>
 
   <script>
+    // 1. Paste your Firebase project configuration here
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
     let currentChannel = 'general';
-    let channels = ['general', 'random'];
+    let defaultChannels = ['general', 'random'];
 
     const channelList = document.getElementById('channelList');
     const messageList = document.getElementById('messageList');
     const currentChannelHeader = document.getElementById('currentChannelHeader');
     const chatForm = document.getElementById('chatForm');
 
-    // Render channels list
-    function renderChannels() {
-      channelList.innerHTML = channels.map(ch => `
+    // Convert selected image file to Base64
+    function fileToBase64(file) {
+      return new Promise((resolve) => {
+        if (!file) return resolve(null);
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+      });
+    }
+
+    // Listen for Channels in Firebase
+    db.ref('channels').on('value', (snapshot) => {
+      const dbChannels = snapshot.val() || {};
+      const allChannels = Array.from(new Set([...defaultChannels, ...Object.values(dbChannels)]));
+
+      channelList.innerHTML = allChannels.map(ch => `
         <li class="channel-item ${ch === currentChannel ? 'active' : ''}" onclick="switchChannel('${ch}')">
           # ${ch}
         </li>
       `).join('');
+
       currentChannelHeader.textContent = `# ${currentChannel}`;
-    }
+    });
 
     function switchChannel(channel) {
       currentChannel = channel;
-      renderChannels();
-      loadMessages();
+      db.ref('channels').once('value'); // Trigger channel list refresh
+      listenForMessages();
     }
 
-    // Add a new channel
+    // Add New Channel to Firebase
     document.getElementById('addChannelBtn').addEventListener('click', () => {
       const input = document.getElementById('newChannelInput');
       const name = input.value.trim().toLowerCase().replace(/\s+/g, '-');
-      if (name && !channels.includes(name)) {
-        channels.push(name);
+      if (name) {
+        db.ref('channels').push(name);
         input.value = '';
         switchChannel(name);
       }
     });
 
-    // Send text + image message
+    // Send Message to Firebase
     chatForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      
+
       const nickname = document.getElementById('nicknameInput').value;
       const text = document.getElementById('textInput').value;
-      const imageFile = document.getElementById('imageInput').files[0];
+      const fileInput = document.getElementById('imageInput');
+      const imageBase64 = await fileToBase64(fileInput.files[0]);
 
-      if (!text && !imageFile) return;
+      if (!text && !imageBase64) return;
 
-      const formData = new FormData();
-      formData.append('channel', currentChannel);
-      formData.append('nickname', nickname);
-      formData.append('text', text);
-      if (imageFile) formData.append('image', imageFile);
-
-      await fetch('/send', { method: 'POST', body: formData });
+      db.ref(`messages/${currentChannel}`).push({
+        nickname: nickname,
+        text: text,
+        image: imageBase64,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      });
 
       document.getElementById('textInput').value = '';
-      document.getElementById('imageInput').value = '';
-      loadMessages();
+      fileInput.value = '';
     });
 
-    // Fetch messages for current channel
-    async function loadMessages() {
-      const res = await fetch(`/messages?channel=${currentChannel}`);
-      const messages = await res.json();
+    // Real-time listener for incoming messages
+    function listenForMessages() {
+      db.ref(`messages/${currentChannel}`).on('value', (snapshot) => {
+        const data = snapshot.val() || {};
+        const messages = Object.values(data);
 
-      messageList.innerHTML = messages.map(msg => `
-        <div class="message-card">
-          <div class="message-author">${msg.nickname}</div>
-          ${msg.text ? `<div class="message-text">${msg.text}</div>` : ''}
-          ${msg.imageUrl ? `<img src="${msg.imageUrl}" />` : ''}
-        </div>
-      `).join('');
-      
-      messageList.scrollTop = messageList.scrollHeight;
+        messageList.innerHTML = messages.map(msg => `
+          <div class="message-card">
+            <div class="message-header">
+              <span class="message-author">${msg.nickname}</span>
+              <span>${msg.timestamp}</span>
+            </div>
+            ${msg.text ? `<div class="message-text">${msg.text}</div>` : ''}
+            ${msg.image ? `<img src="${msg.image}" />` : ''}
+          </div>
+        `).join('');
+
+        messageList.scrollTop = messageList.scrollHeight;
+      });
     }
 
-    renderChannels();
-    loadMessages();
-    setInterval(loadMessages, 2000);
+    // Start Real-time Sync
+    listenForMessages();
   </script>
 </body>
 </html>

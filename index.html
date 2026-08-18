@@ -74,18 +74,16 @@
   </div>
 
   <script>
-    // 1. Paste your Firebase project configuration here
     const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-      databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_PROJECT_ID.appspot.com",
-      messagingSenderId: "YOUR_SENDER_ID",
-      appId: "YOUR_APP_ID"
+      apiKey: "AIzaSyAJ7j2ZNdNVDjwWs0iUawWo8rDJ5p1fxZo",
+      authDomain: "fart-89152.firebaseapp.com",
+      databaseURL: "https://fart-89152-default-rtdb.firebaseio.com",
+      projectId: "fart-89152",
+      storageBucket: "fart-89152.firebasestorage.app",
+      messagingSenderId: "304051169112",
+      appId: "1:304051169112:web:4a284f1915fc017433672d"
     };
 
-    // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
@@ -97,7 +95,6 @@
     const currentChannelHeader = document.getElementById('currentChannelHeader');
     const chatForm = document.getElementById('chatForm');
 
-    // Convert selected image file to Base64
     function fileToBase64(file) {
       return new Promise((resolve) => {
         if (!file) return resolve(null);
@@ -107,7 +104,6 @@
       });
     }
 
-    // Listen for Channels in Firebase
     db.ref('channels').on('value', (snapshot) => {
       const dbChannels = snapshot.val() || {};
       const allChannels = Array.from(new Set([...defaultChannels, ...Object.values(dbChannels)]));
@@ -123,11 +119,10 @@
 
     function switchChannel(channel) {
       currentChannel = channel;
-      db.ref('channels').once('value'); // Trigger channel list refresh
+      db.ref('channels').once('value');
       listenForMessages();
     }
 
-    // Add New Channel to Firebase
     document.getElementById('addChannelBtn').addEventListener('click', () => {
       const input = document.getElementById('newChannelInput');
       const name = input.value.trim().toLowerCase().replace(/\s+/g, '-');
@@ -138,7 +133,6 @@
       }
     });
 
-    // Send Message to Firebase
     chatForm.addEventListener('submit', async (e) => {
       e.preventDefault();
 
@@ -160,7 +154,6 @@
       fileInput.value = '';
     });
 
-    // Real-time listener for incoming messages
     function listenForMessages() {
       db.ref(`messages/${currentChannel}`).on('value', (snapshot) => {
         const data = snapshot.val() || {};
@@ -181,7 +174,6 @@
       });
     }
 
-    // Start Real-time Sync
     listenForMessages();
   </script>
 </body>
